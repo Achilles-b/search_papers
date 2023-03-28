@@ -9,6 +9,7 @@ import datetime
 
 # ログ出力
 import logging
+from logging import getLogger, StreamHandler, Formatter
 
 # 取得結果をexcelに変換するときに使用
 from openpyxl.styles import Border, Font, Side, PatternFill, Alignment
@@ -23,13 +24,11 @@ class SearchPapers():
     def __init__(self) -> None:
         """
         init処理
-        ログ作成
         """
-        self.logger = logging
         pass
 
 
-    def main(self) -> None:
+    def main(self, logger) -> None:
         """
         メイン処理
         """
@@ -37,7 +36,7 @@ class SearchPapers():
         term = input("検索ワード\n")
         retmax = input("検索数\n")
 
-        self.logger.debug(f"検索ワード:{term}, 検索数: {retmax}")
+        logger.debug(f"検索ワード:{term}, 検索数: {retmax}")
         
         #eSearchでpmidを取得
         pmids = self.eSearch(term, retmax)
@@ -50,9 +49,10 @@ class SearchPapers():
         
         #summaryとabstractを統合し一つのDataFrameとする
         result_df = pd.merge(summary_df, abst_df, on='pmid')
+        logger.info(f"result_df: {result_df}")
 
         # Excelに取得結果DataFrameの内容を出力
-        filename, filenamexl = self.result_to_excel(term, result_df)
+        self.result_to_excel(term, result_df)
 
     def eSearch(self, term: str, retmax: int) -> json:
         """
@@ -71,6 +71,7 @@ class SearchPapers():
         response = requests.get(query)
         response_json = response.json()
         pmids = response_json['esearchresult']['idlist']
+        logger.info(f"pmids: {pmids}")
         return pmids
 
     def eSummary(self, pmids:json) -> pd.DataFrame:
@@ -191,10 +192,29 @@ class SearchPapers():
         # 作製結果を保存
         wb.save(filenamexl)
 
-        return filename, wb
-
 if __name__ == "__main__":
-    logger = logging
+    # loggerオブジェクトの宣言
+    logger = getLogger(__name__)
+
+    # loggerのログレベル設定
+    # Handlerに渡すエラーメッセージのレベルを表す
+    # 今回だとDEBUG以下のレベルの内容は表示されない
+    logger.setLevel(logging.DEBUG)
+
+    # handlerの生成
+    stream_handler = StreamHandler()
+
+    # handlerのログレベル設定
+    stream_handler.setLevel(logging.DEBUG)
+
+    # ログ出力フォーマットの設定
+    handler_format = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    stream_handler.setFormatter(handler_format)
+
+    # loggerにhandlerをセット
+    logger.addHandler(stream_handler)
+
+    # 関数の実行
     search_papers = SearchPapers()
-    search_papers.main()
+    search_papers.main(logger)
 
